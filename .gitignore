@@ -1,0 +1,13 @@
+.DS_Store
+
+# SwiftPM / build artifacts
+.build/
+.swiftpm/
+
+# Xcode local state
+DerivedData/
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
