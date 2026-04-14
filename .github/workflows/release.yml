@@ -1,0 +1,100 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: macos-14
+    steps:
+      - name: Checkout app repo
+        uses: actions/checkout@v4
+
+      - name: Derive release metadata
+        id: vars
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          package_filename="key-launch-${version}.dmg"
+          release_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/${package_filename}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "package_filename=$package_filename" >> "$GITHUB_OUTPUT"
+          echo "release_url=$release_url" >> "$GITHUB_OUTPUT"
+
+      - name: Build release package
+        id: package
+        env:
+          PACKAGE_FILENAME: ${{ steps.vars.outputs.package_filename }}
+          METADATA_FILE: ${{ runner.temp }}/package.env
+        run: |
+          chmod +x scripts/package-app.sh scripts/update-homebrew-cask.sh
+          ./scripts/package-app.sh
+          cat "$METADATA_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Validate tag version matches app version
+        run: |
+          if [[ "${{ steps.package.outputs.APP_VERSION }}" != "${{ steps.vars.outputs.version }}" ]]; then
+            echo "Tag version ${{ steps.vars.outputs.version }} does not match app MARKETING_VERSION ${{ steps.package.outputs.APP_VERSION }}" >&2
+            exit 1
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: ${{ steps.package.outputs.PACKAGE_PATH }}
+
+      - name: Write release summary
+        run: |
+          {
+            echo "## Release Metadata"
+            echo
+            echo "- Version: \`${{ steps.vars.outputs.version }}\`"
+            echo "- Asset: \`${{ steps.vars.outputs.package_filename }}\`"
+            echo "- URL: \`${{ steps.vars.outputs.release_url }}\`"
+            echo "- SHA256: \`${{ steps.package.outputs.SHA256 }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Checkout homebrew tap
+        if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+        uses: actions/checkout@v4
+        with:
+          repository: KevoraLabs/homebrew-tap
+          ref: main
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Update homebrew cask
+        if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+        run: |
+          ./scripts/update-homebrew-cask.sh \
+            --cask-token "key-launch" \
+            --cask-file "$GITHUB_WORKSPACE/homebrew-tap/Casks/key-launch.rb" \
+            --version "${{ steps.vars.outputs.version }}" \
+            --sha256 "${{ steps.package.outputs.SHA256 }}" \
+            --url "${{ steps.vars.outputs.release_url }}" \
+            --verified "github.com/KevoraLabs/key-launch/" \
+            --app-name "KeyLaunch" \
+            --desc "Launch apps with global keyboard shortcuts on macOS" \
+            --homepage "https://github.com/KevoraLabs/key-launch"
+
+      - name: Commit and push homebrew tap update
+        if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+        working-directory: homebrew-tap
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet -- Casks/key-launch.rb; then
+            echo "No Homebrew cask changes to commit."
+            exit 0
+          fi
+
+          git add Casks/key-launch.rb
+          git commit -m "Update key-launch to ${{ steps.vars.outputs.version }}"
+          git push origin HEAD:main

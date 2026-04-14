@@ -3,6 +3,8 @@
 # SwiftPM / build artifacts
 .build/
 .swiftpm/
+dist/
+*.xcarchive
 
 # Xcode local state
 DerivedData/

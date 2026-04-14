@@ -26,6 +26,49 @@ open KeyLaunch.xcodeproj
 
 然后在 Xcode 里直接 `Run`。
 
+## 打包发布包
+
+```bash
+./scripts/package-app.sh
+```
+
+脚本会：
+
+- 构建 `Release` 版本
+- 输出 `dist/key-launch-版本号-构建号.dmg`
+- 打印对应的 SHA256，后续可直接填到 Homebrew cask
+
+## GitHub Actions 发版
+
+自动化放在 `key-launch` 仓库本身，通过推 tag 发版：
+
+完整步骤见 [RELEASE.md](/Users/kevin/Developer/Code/KevoraLabs/key-launch/RELEASE.md:1)。
+
+```bash
+git tag v1.1
+git push origin v1.1
+```
+
+这里的 tag 去掉前缀 `v` 后，必须和 app 的 `MARKETING_VERSION` 一致；workflow 会做这个校验，不一致就直接失败。
+
+`/.github/workflows/release.yml` 会自动执行这条链路：
+
+- 构建 `.app`
+- 打包成 GitHub Release 资产 `key-launch-版本号.dmg`
+- 创建 GitHub Release 并上传 DMG
+- 计算 SHA256
+- 如果配置了 `HOMEBREW_TAP_TOKEN`，自动创建或更新 `KevoraLabs/homebrew-tap` 的 `Casks/key-launch.rb`
+
+## Homebrew 安装
+
+第一次 release 完成并同步到 tap 后，用户可以执行：
+
+```bash
+brew install --cask KevoraLabs/tap/key-launch
+```
+
+具体接入方式见 [HOMEBREW_SETUP.md](/Users/kevin/Developer/Code/KevoraLabs/key-launch/HOMEBREW_SETUP.md:1)。
+
 ## 快捷键配置文件
 
 应用首次启动会生成配置文件：
