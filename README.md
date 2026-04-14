@@ -1,115 +1,64 @@
 # KeyLaunch（键启）
 
-一个原生 macOS 快捷启动工具：把按键绑定到 App，用全局快捷键快速切换/启动应用。
+KeyLaunch 是一个 macOS 菜单栏小工具，用来给常用 App 绑定全局快捷键。
 
-## 主要功能
+如果你经常在 Safari、Finder、终端、编辑器这些应用之间来回切，KeyLaunch 会比较顺手：按下自己设好的组合键，直接切过去，不用再到 Dock 或 Spotlight 里找。
 
-- 全局快捷键启动 App，目标 App 已在前台时可快速切回上一个应用（或隐藏当前应用）。
-- 支持 `Option` / `Command` / `Option + Command` 触发键组合。
-- 主界面键盘映射可视化，点击按键即可绑定/修改 App。
-- 绑定弹窗支持按字母推荐 App（推荐项置顶，不参与搜索，最多 4 个）。
-- 显示 App 已绑定的快捷键，当前组合已被该 App 使用时会有明确提示。
-- 应用内冲突检测：同一按键组合已被占用时，阻止保存并提示冲突对象。
-- 系统快捷键冲突提示：读取 macOS `com.apple.symbolichotkeys` 做提醒。
-- 注册失败可视化：若全局热键注册失败（常见于被其他 App 占用），键帽会显示警告标识。
-- 近 7 日使用前 10（横向滚动）：单项至少使用 3 次，且榜单至少有 3 项才展示。
-- 启动失败自动重试一次（约 300ms），提升首次拉起成功率。
-- 一键暂停/开启快捷键（菜单栏可操作）。
-- 快捷键配置导入/导出 JSON（迁移机器方便）。
+## 可以做什么
 
-## 本地运行
+- 给 App 绑定全局快捷键
+- 支持 `Option`、`Command`、`Option + Command` 组合
+- 直接在键盘布局里点选按键，设置更直观
+- 如果目标 App 已经在前台，再按一次可以切回上一个 App，或者隐藏当前 App
+- 同一组快捷键如果已经被别的 App 占用，会直接提示
+- 如果和系统快捷键冲突，也会给出提醒
+- 菜单栏里可以随时暂停或恢复快捷键
+- 支持导入和导出配置，换机器时比较方便
 
-```bash
-cd /Users/kevin/Developer/Code/side-project/apps/macos/KeyLaunch
-open KeyLaunch.xcodeproj
-```
+## 安装
 
-然后在 Xcode 里直接 `Run`。
-
-## 打包发布包
+### 用 Homebrew 安装
 
 ```bash
-./scripts/package-app.sh
-```
-
-脚本会：
-
-- 构建 `Release` 版本
-- 输出 `dist/key-launch-版本号-构建号.dmg`
-- 打印对应的 SHA256，后续可直接填到 Homebrew cask
-
-## GitHub Actions 发版
-
-自动化放在 `key-launch` 仓库本身，通过推 tag 发版：
-
-完整步骤见 [RELEASE.md](/Users/kevin/Developer/Code/KevoraLabs/key-launch/RELEASE.md:1)。
-
-```bash
-git tag v1.1
-git push origin v1.1
-```
-
-这里的 tag 去掉前缀 `v` 后，必须和 app 的 `MARKETING_VERSION` 一致；workflow 会做这个校验，不一致就直接失败。
-
-`/.github/workflows/release.yml` 会自动执行这条链路：
-
-- 构建 `.app`
-- 打包成 GitHub Release 资产 `key-launch-版本号.dmg`
-- 创建 GitHub Release 并上传 DMG
-- 计算 SHA256
-- 如果配置了 `HOMEBREW_TAP_TOKEN`，自动创建或更新 `KevoraLabs/homebrew-tap` 的 `Casks/key-launch.rb`
-
-## Homebrew 安装
-
-第一次 release 完成并同步到 tap 后，用户可以执行：
-
-```bash
+brew tap KevoraLabs/tap
 brew install --cask KevoraLabs/tap/key-launch
 ```
 
-具体接入方式见 [HOMEBREW_SETUP.md](/Users/kevin/Developer/Code/KevoraLabs/key-launch/HOMEBREW_SETUP.md:1)。
+### 直接下载
 
-## 快捷键配置文件
+也可以在 [Releases](https://github.com/KevoraLabs/key-launch/releases) 页面下载安装包。
 
-应用首次启动会生成配置文件：
+如果 macOS 第一次打开时提示无法验证应用，可以在确认来源可信后执行：
+
+```bash
+xattr -dr com.apple.quarantine /Applications/KeyLaunch.app
+```
+
+如果你把应用放在别的位置，把路径换成实际的 `.app` 路径就行。
+
+## 怎么用
+
+1. 打开 KeyLaunch 后，它会常驻在菜单栏。
+2. 选一个触发组合，比如 `Option` 或 `Command + Option`。
+3. 在键盘界面里点一个按键。
+4. 给这个按键选一个 App。
+5. 之后在任何地方按下这组快捷键，就能直接切到对应应用。
+
+如果你已经在这个 App 里，再按一次，KeyLaunch 会按当前设置切回上一个应用，或者隐藏当前应用。
+
+## 配置文件
+
+快捷键配置保存在：
 
 - `~/Library/Application Support/AppLauncher/shortcuts.json`
 
-示例：
+你也可以直接用菜单栏里的导入、导出功能来备份和迁移配置。
 
-```json
-[
-  {
-    "bundleIdentifier": "com.apple.Safari",
-    "enabled": true,
-    "id": "safari",
-    "key": "1",
-    "modifiers": ["command", "option"],
-    "name": "Safari"
-  },
-  {
-    "bundleIdentifier": "com.apple.finder",
-    "enabled": true,
-    "id": "finder",
-    "key": "2",
-    "modifiers": ["command", "option"],
-    "name": "Finder"
-  }
-]
-```
+## 菜单栏里可以做的事
 
-支持的修饰键：`command` / `option` / `control` / `shift`  
-支持的按键：`a-z`、`0-9`、`f1-f12`、`space`、`return`、`tab`、`esc`、`delete`
-
-## 菜单栏操作
-
-- 显示主窗口
-- 在 Dock 栏显示图标（可开关）
-- 开机自启动
-- 暂停快捷键 / 开启快捷键
-- 导入快捷键配置 / 导出快捷键配置
-- 退出
-
-## TODO
-
-- [ ] 支持多个配置项：允许用户创建和管理多个配置项，每个配置项可绑定不同的一组快捷方式，方便在不同场景下快速切换使用。
+- 打开主界面
+- 显示或隐藏 Dock 图标
+- 设置开机自启动
+- 暂停或恢复快捷键
+- 导入或导出快捷键配置
+- 退出应用
